@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản lý xe - Car Rental</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css"
+    />
+    <style>
+      body {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .navbar {
+        background: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+      }
+      .page-header {
+        background: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin: 2rem 0;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      }
+      .car-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+      }
+      .badge-available {
+        background: #10b981;
+      }
+      .badge-rented {
+        background: #f59e0b;
+      }
+      .badge-maintenance {
+        background: #ef4444;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="/">
+          <i class="bi bi-car-front-fill me-2"></i>Car Rental
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="/"
+                ><i class="bi bi-house-fill"></i> Trang chủ</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="/cars"
+                ><i class="bi bi-car-front"></i> Xe</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/bookings"
+                ><i class="bi bi-calendar-check"></i> Đặt xe</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1><i class="bi bi-car-front-fill me-2"></i>Quản lý xe</h1>
+            <p class="text-muted mb-0">Quản lý danh sách xe cho thuê</p>
+          </div>
+          <button
+            class="btn btn-primary btn-lg"
+            data-bs-toggle="modal"
+            data-bs-target="#carModal"
+            onclick="openAddForm()"
+          >
+            <i class="bi bi-plus-circle me-2"></i>Thêm xe
+          </button>
+        </div>
+      </div>
+
+      <div id="carsContainer" class="row"></div>
+    </div>
+
+    <!-- Modal Form -->
+    <div class="modal fade" id="carModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalTitle">Thêm xe mới</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="carForm">
+              <input type="hidden" id="carId" />
+              <div class="mb-3">
+                <label class="form-label">Biển số xe *</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="carNumber"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Sức chứa (người) *</label>
+                <input
+                  type="number"
+                  class="form-control"
+                  id="capacity"
+                  min="2"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Giá/ngày (VNĐ) *</label>
+                <input
+                  type="number"
+                  class="form-control"
+                  id="pricePerDay"
+                  min="0"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Trạng thái</label>
+                <select class="form-select" id="status">
+                  <option value="available">Khả dụng</option>
+                  <option value="rented">Đã thuê</option>
+                  <option value="maintenance">Bảo trì</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label"
+                  >Tính năng (cách nhau bởi dấu phẩy)</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="features"
+                  placeholder="Điều hòa, Bluetooth"
+                />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Hủy
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveCar()">
+              Lưu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let cars = [];
+      let editingId = null;
+      const modal = new bootstrap.Modal(document.getElementById("carModal"));
+
+      // Load cars từ API
+      async function loadCars() {
+        try {
+          const res = await fetch("/api/cars");
+          cars = await res.json();
+          renderCars();
+        } catch (error) {
+          alert("Lỗi khi tải danh sách xe: " + error.message);
+        }
+      }
+
+      // Render danh sách xe
+      function renderCars() {
+        const container = document.getElementById("carsContainer");
+        if (cars.length === 0) {
+          container.innerHTML =
+            '<div class="col-12 text-center text-white"><h4>Chưa có xe nào</h4></div>';
+          return;
+        }
+
+        container.innerHTML = cars
+          .map(
+            (car) => `
+        <div class="col-md-6 col-lg-4">
+          <div class="car-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <h5 class="mb-0">${car.carNumber}</h5>
+              <span class="badge badge-${car.status}">${
+                car.status === "available"
+                  ? "Khả dụng"
+                  : car.status === "rented"
+                    ? "Đã thuê"
+                    : "Bảo trì"
+              }</span>
+            </div>
+            <p class="mb-1"><i class="bi bi-people me-2"></i>Sức chứa: ${car.capacity || 0} người</p>
+            <p class="mb-2"><i class="bi bi-currency-dollar me-2"></i>Giá: ${(car.pricePerDay || 0).toLocaleString()} đ/ngày</p>
+            ${
+              car.features && car.features.length > 0
+                ? `
+              <div class="mb-2">
+                ${car.features.map((f) => `<span class="badge bg-secondary me-1">${f}</span>`).join("")}
+              </div>
+            `
+                : ""
+            }
+            <div class="d-flex gap-2 mt-3">
+              <button class="btn btn-sm btn-outline-primary flex-fill" onclick="openEditForm('${car._id}')">
+                <i class="bi bi-pencil"></i> Sửa
+              </button>
+              <button class="btn btn-sm btn-outline-danger flex-fill" onclick="deleteCar('${car._id}')">
+                <i class="bi bi-trash"></i> Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      `,
+          )
+          .join("");
+      }
+
+      // Mở form thêm
+      function openAddForm() {
+        editingId = null;
+        document.getElementById("modalTitle").textContent = "Thêm xe mới";
+        document.getElementById("carForm").reset();
+        document.getElementById("carNumber").removeAttribute("readonly");
+      }
+
+      // Mở form sửa
+      function openEditForm(id) {
+        editingId = id;
+        const car = cars.find((c) => c._id === id);
+        document.getElementById("modalTitle").textContent = "Sửa xe";
+        document.getElementById("carNumber").value = car.carNumber;
+        document
+          .getElementById("carNumber")
+          .setAttribute("readonly", "readonly");
+        document.getElementById("capacity").value = car.capacity;
+        document.getElementById("pricePerDay").value = car.pricePerDay;
+        document.getElementById("status").value = car.status;
+        document.getElementById("features").value = car.features
+          ? car.features.join(", ")
+          : "";
+        modal.show();
+      }
+
+      // Lưu xe (Thêm/Sửa)
+      async function saveCar() {
+        const carNumber = document.getElementById("carNumber").value.trim();
+        const capacity = parseInt(document.getElementById("capacity").value);
+        const pricePerDay = parseFloat(
+          document.getElementById("pricePerDay").value,
+        );
+        const status = document.getElementById("status").value;
+        const featuresStr = document.getElementById("features").value;
+        const features = featuresStr
+          ? featuresStr
+              .split(",")
+              .map((f) => f.trim())
+              .filter((f) => f)
+          : [];
+
+        const data = { carNumber, capacity, pricePerDay, status, features };
+
+        try {
+          let res;
+          if (editingId) {
+            // Update
+            res = await fetch(`/api/cars/${editingId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(data),
+            });
+          } else {
+            // Create
+            res = await fetch("/api/cars", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(data),
+            });
+          }
+
+          const result = await res.json();
+          if (result.success) {
+            modal.hide();
+            loadCars();
+          } else {
+            alert("Lỗi: " + result.message);
+          }
+        } catch (error) {
+          alert("Lỗi: " + error.message);
+        }
+      }
+
+      // Xóa xe
+      async function deleteCar(id) {
+        if (!confirm("Bạn chắc chắn muốn xóa xe này?")) return;
+
+        try {
+          const res = await fetch(`/api/cars/${id}`, { method: "DELETE" });
+          const result = await res.json();
+          if (result.success) {
+            loadCars();
+          } else {
+            alert("Lỗi: " + result.message);
+          }
+        } catch (error) {
+          alert("Lỗi: " + error.message);
+        }
+      }
+
+      // Load khi trang load
+      loadCars();
+    </script>
+  </body>
+</html>

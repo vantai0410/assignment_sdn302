@@ -66,8 +66,6 @@ app.get("/bookings", (req, res) => res.render("bookings"));
 const PORT = process.env.PORT || 5000;
 
 // Start server
-const http = require("http");
-
 if (process.env.NODE_ENV === "production") {
   // Production: Check if SSL files exist (for local HTTPS testing)
   const keyPath = process.env.SSL_KEY_PATH || "./server.key";

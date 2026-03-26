@@ -72,7 +72,7 @@ if (process.env.NODE_ENV === "production") {
   // Production: Check if SSL files exist (for local HTTPS testing)
   const keyPath = process.env.SSL_KEY_PATH || "./server.key";
   const certPath = process.env.SSL_CERT_PATH || "./server.cert";
-  
+
   if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
     // Local production with SSL
     try {
@@ -92,7 +92,9 @@ if (process.env.NODE_ENV === "production") {
     // Production on Render/Railway/etc (HTTPS handled by platform)
     const server = http.createServer(app);
     server.listen(PORT, () => {
-      console.log(`✓ HTTP Server (Platform handles HTTPS) → http://localhost:${PORT}`);
+      console.log(
+        `✓ HTTP Server (Platform handles HTTPS) → http://localhost:${PORT}`,
+      );
     });
   }
 } else {

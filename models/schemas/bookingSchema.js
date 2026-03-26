@@ -26,6 +26,15 @@ const bookingSchema = new Schema(
       required: [true, "Total amount is required"],
       min: [0, "Total amount cannot be negative"],
     },
+    actualReturnDate: {
+      type: Date,
+      default: null,
+    },
+    penaltyAmount: {
+      type: Number,
+      default: 0,
+      min: [0, "Penalty amount cannot be negative"],
+    },
   },
   {
     timestamps: true,

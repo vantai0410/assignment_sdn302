@@ -131,6 +131,7 @@ exports.getMe = async (req, res) => {
           id: user._id,
           username: user.username,
           email: user.email,
+          avatar: user.avatar,
           role: user.role,
           createdAt: user.createdAt,
         },
@@ -144,4 +145,43 @@ exports.getMe = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+// @desc    Google OAuth callback
+// @route   GET /api/auth/google/callback
+// @access  Public
+exports.googleCallback = (req, res) => {
+  try {
+    if (!req.user) {
+      return res.redirect("/login?error=auth_failed");
+    }
+
+    // Tạo JWT token
+    const token = generateToken(req.user._id);
+
+    // Redirect về success page với chỉ token
+    res.redirect(`/auth-success?token=${encodeURIComponent(token)}`);
+  } catch (error) {
+    console.error("Google callback error:", error);
+    res.redirect("/login?error=callback_error");
+  }
+};
+
+// @desc    Logout
+// @route   POST /api/auth/logout
+// @access  Private
+exports.logout = (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: "Logout failed",
+        error: err.message,
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Logout thành công",
+    });
+  });
 };

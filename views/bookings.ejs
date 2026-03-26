@@ -2,6 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quản lý đặt xe - Car Rental</title>
     <link
@@ -15,7 +16,7 @@
     <style>
       body {
         min-height: 100vh;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
       }
       .navbar {
         background: rgba(255, 255, 255, 0.95) !important;
@@ -68,6 +69,14 @@
                 ><i class="bi bi-calendar-check"></i> Đặt xe</a
               >
             </li>
+            <li class="nav-item">
+              <span class="nav-link" id="userDisplay"></span>
+            </li>
+            <li class="nav-item">
+              <button class="btn btn-sm btn-danger ms-2" onclick="logout()">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </button>
+            </li>
           </ul>
         </div>
       </div>
@@ -102,6 +111,8 @@
               <th>Ngày bắt đầu</th>
               <th>Ngày kết thúc</th>
               <th>Tổng tiền</th>
+              <th>Ngày thực trả</th>
+              <th>Tiền phạt</th>
               <th>Thao tác</th>
             </tr>
           </thead>
@@ -131,12 +142,13 @@
               <input type="hidden" id="bookingId" />
               <div class="mb-3">
                 <label class="form-label">Tên khách hàng *</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="customerName"
-                  required
-                />
+                <div
+                  class="form-control bg-light"
+                  id="customerNameDisplay"
+                  style="border: 1px solid #dee2e6"
+                >
+                  <span id="customerNameText">--</span>
+                </div>
               </div>
               <div class="mb-3">
                 <label class="form-label">Chọn xe *</label>
@@ -202,20 +214,153 @@
       </div>
     </div>
 
+    <!-- Return Modal -->
+    <div class="modal fade" id="returnModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Trả xe</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="returnForm">
+              <input type="hidden" id="returnBookingId" />
+              <div class="mb-3">
+                <label class="form-label">Ngày giờ trả thực tế *</label>
+                <input
+                  type="datetime-local"
+                  class="form-control"
+                  id="actualReturnDate"
+                  required
+                />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              class="btn btn-success"
+              onclick="saveReturnCar()"
+            >
+              Xác nhận trả
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+      // Check login
+      document.addEventListener("DOMContentLoaded", () => {
+        const token = localStorage.getItem("auth_token");
+        if (!token) {
+          window.location.href = "/login";
+          return;
+        }
+
+        // Display user info
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        if (user.username) {
+          document.getElementById("userDisplay").innerHTML =
+            `<i class="bi bi-person-circle"></i> ${user.username}`;
+        }
+      });
+
+      // Logout function
+      function logout() {
+        if (confirm("Bạn chắc chắn muốn logout?")) {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+        }
+      }
+
+      // Helper to get auth headers
+      function getAuthHeaders() {
+        const token = localStorage.getItem("auth_token");
+        return {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        };
+      }
+
       let bookings = [];
       let cars = [];
       let editingId = null;
       const modal = new bootstrap.Modal(
         document.getElementById("bookingModal"),
       );
+      const returnModal = new bootstrap.Modal(
+        document.getElementById("returnModal"),
+      );
+
+      // Mở form trả xe
+      function openReturnForm(id) {
+        document.getElementById("returnBookingId").value = id;
+
+        // Tạo chuỗi datetime-local (YYYY-MM-DDThh:mm)
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById("actualReturnDate").value = now
+          .toISOString()
+          .slice(0, 16);
+
+        returnModal.show();
+      }
+
+      // Lưu trả xe
+      async function saveReturnCar() {
+        const id = document.getElementById("returnBookingId").value;
+        const actualReturnDate =
+          document.getElementById("actualReturnDate").value;
+
+        if (!actualReturnDate) {
+          alert("Vui lòng nhập ngày giờ trả");
+          return;
+        }
+
+        try {
+          const res = await fetch(`/api/bookings/${id}`, {
+            method: "PUT",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              actualReturnDate: new Date(actualReturnDate).toISOString(),
+            }),
+          });
+
+          const result = await res.json();
+          if (result.success) {
+            returnModal.hide();
+            loadData();
+          } else {
+            alert("Lỗi: " + result.message);
+          }
+        } catch (error) {
+          alert("Lỗi: " + error.message);
+        }
+      }
 
       // Load bookings và cars
       async function loadData() {
         try {
           const [bookingsRes, carsRes] = await Promise.all([
-            fetch("/api/bookings"),
+            fetch("/api/bookings", {
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("auth_token"),
+              },
+            }),
             fetch("/api/cars"),
           ]);
           bookings = await bookingsRes.json();
@@ -244,7 +389,10 @@
           <td>${new Date(b.startDate).toLocaleDateString("vi-VN")}</td>
           <td>${new Date(b.endDate).toLocaleDateString("vi-VN")}</td>
           <td class="text-success fw-bold">${(b.totalAmount || 0).toLocaleString()} đ</td>
+          <td>${b.actualReturnDate ? new Date(b.actualReturnDate).toLocaleDateString("vi-VN") + " " + new Date(b.actualReturnDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : '<span class="text-warning">Chưa trả</span>'}</td>
+          <td class="text-danger fw-bold">${(b.penaltyAmount || 0).toLocaleString()} đ</td>
           <td>
+            ${!b.actualReturnDate ? `<button class="btn btn-sm btn-outline-success me-1" onclick="openReturnForm('${b._id}')" title="Trả xe"><i class="bi bi-box-arrow-in-right"></i></button>` : ""}
             <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditForm('${b._id}')">
               <i class="bi bi-pencil"></i>
             </button>
@@ -263,6 +411,12 @@
         editingId = null;
         document.getElementById("modalTitle").textContent = "Đặt xe mới";
         document.getElementById("bookingForm").reset();
+
+        // Display current user's username
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        document.getElementById("customerNameText").textContent =
+          user.username || "--";
+
         loadCarsToSelect();
         const today = new Date().toISOString().split("T")[0];
         document.getElementById("startDate").min = today;
@@ -275,7 +429,9 @@
         editingId = id;
         const booking = bookings.find((b) => b._id === id);
         document.getElementById("modalTitle").textContent = "Sửa đặt xe";
-        document.getElementById("customerName").value = booking.customerName;
+        // Display booking's customer name (read-only)
+        document.getElementById("customerNameText").textContent =
+          booking.customerName;
         document.getElementById("startDate").value =
           booking.startDate.split("T")[0];
         document.getElementById("endDate").value =
@@ -336,27 +492,25 @@
 
       // Lưu booking
       async function saveBooking() {
-        const customerName = document
-          .getElementById("customerName")
-          .value.trim();
         const carNumber = document.getElementById("carNumber").value;
         const startDate = document.getElementById("startDate").value;
         const endDate = document.getElementById("endDate").value;
 
-        const data = { customerName, carNumber, startDate, endDate };
+        // Backend will auto-fill customerName from authenticated user
+        const data = { carNumber, startDate, endDate };
 
         try {
           let res;
           if (editingId) {
             res = await fetch(`/api/bookings/${editingId}`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data),
             });
           } else {
             res = await fetch("/api/bookings", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data),
             });
           }
@@ -378,7 +532,10 @@
         if (!confirm("Bạn chắc chắn muốn xóa đơn này?")) return;
 
         try {
-          const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" });
+          const res = await fetch(`/api/bookings/${id}`, {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+          });
           const result = await res.json();
           if (result.success) {
             loadData();

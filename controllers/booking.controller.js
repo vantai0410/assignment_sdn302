@@ -3,10 +3,17 @@ const Car = require("../models/car.model");
 const { calculateRentalDays } = require("../utils/date.utils");
 
 const bookingController = {
-  // GET /api/bookings
+  // GET /api/bookings - Admin xem tất cả, Customer xem của mình
   getAll: async (req, res) => {
     try {
-      const bookings = await Booking.find().sort({ createdAt: -1 }).lean();
+      let query = {};
+
+      // Customer chỉ xem booking của chính họ
+      if (req.user.role === "customer") {
+        query.customerName = req.user.username;
+      }
+
+      const bookings = await Booking.find(query).sort({ createdAt: -1 }).lean();
       return res.json(bookings);
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
@@ -80,13 +87,38 @@ const bookingController = {
     }
   },
 
-  // PUT /api/bookings/:id
   update: async (req, res) => {
     try {
-      const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
-        runValidators: true,
-      });
+      const updateData = { ...req.body };
+
+      if (updateData.actualReturnDate) {
+        const existingBooking = await Booking.findById(req.params.id);
+        if (!existingBooking) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Không tìm thấy booking" });
+        }
+
+        const end = new Date(existingBooking.endDate);
+        const actual = new Date(updateData.actualReturnDate);
+
+        if (actual > end) {
+          const diffMs = actual - end;
+          const diffMinutes = Math.floor(diffMs / (1000 * 60));
+          updateData.penaltyAmount = diffMinutes * 50000;
+        } else {
+          updateData.penaltyAmount = 0;
+        }
+      }
+
+      const booking = await Booking.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        },
+      );
 
       if (!booking) {
         return res

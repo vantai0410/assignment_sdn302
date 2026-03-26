@@ -21,14 +21,23 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters"],
       select: false, // Không trả về password khi query
+      // Không required nếu dùng Google OAuth
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Cho phép null cho non-Google users
+    },
+    avatar: {
+      type: String,
+      default: null,
     },
     role: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+      enum: ["admin", "customer"],
+      default: "customer",
     },
   },
   {

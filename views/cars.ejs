@@ -2,6 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quản lý xe - Car Rental</title>
     <link
@@ -15,7 +16,7 @@
     <style>
       body {
         min-height: 100vh;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
       }
       .navbar {
         background: rgba(255, 255, 255, 0.95) !important;
@@ -77,6 +78,14 @@
               <a class="nav-link" href="/bookings"
                 ><i class="bi bi-calendar-check"></i> Đặt xe</a
               >
+            </li>
+            <li class="nav-item">
+              <span class="nav-link" id="userDisplay"></span>
+            </li>
+            <li class="nav-item">
+              <button class="btn btn-sm btn-danger ms-2" onclick="logout()">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </button>
             </li>
           </ul>
         </div>
@@ -187,9 +196,54 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+      // Check login
+      document.addEventListener("DOMContentLoaded", () => {
+        const token = localStorage.getItem("auth_token");
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+        if (!token) {
+          window.location.href = "/login";
+          return;
+        }
+
+        // Display user info
+        if (user.username) {
+          document.getElementById("userDisplay").innerHTML =
+            `<i class="bi bi-person-circle"></i> ${user.username}`;
+        }
+
+        // Hide "Thêm xe" button for customers
+        const userRole = user.role || "customer";
+        if (userRole === "customer") {
+          document
+            .querySelectorAll('[data-bs-target="#carModal"]')
+            .forEach((btn) => {
+              btn.style.display = "none";
+            });
+        }
+      });
+
+      // Logout function
+      function logout() {
+        if (confirm("Bạn chắc chắn muốn logout?")) {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+        }
+      }
+
       let cars = [];
       let editingId = null;
       const modal = new bootstrap.Modal(document.getElementById("carModal"));
+
+      // Helper to get auth headers
+      function getAuthHeaders() {
+        const token = localStorage.getItem("auth_token");
+        return {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        };
+      }
 
       // Load cars từ API
       async function loadCars() {
@@ -205,6 +259,9 @@
       // Render danh sách xe
       function renderCars() {
         const container = document.getElementById("carsContainer");
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const isAdmin = user.role === "admin";
+
         if (cars.length === 0) {
           container.innerHTML =
             '<div class="col-12 text-center text-white"><h4>Chưa có xe nào</h4></div>';
@@ -238,12 +295,18 @@
                 : ""
             }
             <div class="d-flex gap-2 mt-3">
+              ${
+                isAdmin
+                  ? `
               <button class="btn btn-sm btn-outline-primary flex-fill" onclick="openEditForm('${car._id}')">
                 <i class="bi bi-pencil"></i> Sửa
               </button>
               <button class="btn btn-sm btn-outline-danger flex-fill" onclick="deleteCar('${car._id}')">
                 <i class="bi bi-trash"></i> Xóa
               </button>
+              `
+                  : ""
+              }
             </div>
           </div>
         </div>
@@ -302,14 +365,14 @@
             // Update
             res = await fetch(`/api/cars/${editingId}`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data),
             });
           } else {
             // Create
             res = await fetch("/api/cars", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data),
             });
           }
@@ -331,7 +394,10 @@
         if (!confirm("Bạn chắc chắn muốn xóa xe này?")) return;
 
         try {
-          const res = await fetch(`/api/cars/${id}`, { method: "DELETE" });
+          const res = await fetch(`/api/cars/${id}`, {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+          });
           const result = await res.json();
           if (result.success) {
             loadCars();

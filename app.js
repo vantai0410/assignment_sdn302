@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const https = require("https");
+const http = require("http");
 const fs = require("fs");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -64,30 +65,41 @@ app.get("/bookings", (req, res) => res.render("bookings"));
 
 const PORT = process.env.PORT || 5000;
 
-// Start server (HTTP for development, HTTPS for production)
+// Start server
+const http = require("http");
+
 if (process.env.NODE_ENV === "production") {
-  // Production: HTTPS
-  try {
-    const options = {
-      key: fs.readFileSync(process.env.SSL_KEY_PATH || "./server.key"),
-      cert: fs.readFileSync(process.env.SSL_CERT_PATH || "./server.cert"),
-    };
-    const server = https.createServer(options, app);
+  // Production: Check if SSL files exist (for local HTTPS testing)
+  const keyPath = process.env.SSL_KEY_PATH || "./server.key";
+  const certPath = process.env.SSL_CERT_PATH || "./server.cert";
+  
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    // Local production with SSL
+    try {
+      const options = {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      };
+      const server = https.createServer(options, app);
+      server.listen(PORT, () => {
+        console.log(`✓ HTTPS Server → https://localhost:${PORT}`);
+      });
+    } catch (err) {
+      console.error("❌ SSL Certificate Error:", err.message);
+      process.exit(1);
+    }
+  } else {
+    // Production on Render/Railway/etc (HTTPS handled by platform)
+    const server = http.createServer(app);
     server.listen(PORT, () => {
-      console.log(`✓ HTTPS Server → https://localhost:${PORT}`);
+      console.log(`✓ HTTP Server (Platform handles HTTPS) → http://localhost:${PORT}`);
     });
-  } catch (err) {
-    console.error("❌ SSL Certificate Error:", err.message);
-    process.exit(1);
   }
 } else {
-  // Development: HTTP (easier for Google OAuth testing)
-  app.listen(PORT, () => {
+  // Development: HTTP
+  const server = http.createServer(app);
+  server.listen(PORT, () => {
     console.log(`✓ HTTP Server → http://localhost:${PORT}`);
-    console.log(`✓ Environment: ${process.env.NODE_ENV}`);
-    console.log(
-      `✓ Google OAuth: ${process.env.GOOGLE_CLIENT_ID ? "Configured ✓" : "Not configured ⚠"}`,
-    );
   });
 }
 
